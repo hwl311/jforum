@@ -4,6 +4,11 @@ import org.apache.log4j.Logger;
 import org.sh.comm.IPackage;
 import org.sh.comm.SevErr;
 
+/**
+ * 
+ * @author stephen
+ *
+ */
 public class StringFilter  implements IPkgFilter {
 	static private Logger logger = Logger.getLogger(StringFilter.class.getName());
 	public boolean check(Object obj,IPackage type,IPkgChecker checker)throws SevErr{
