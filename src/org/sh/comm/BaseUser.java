@@ -43,23 +43,14 @@ public class BaseUser implements IUser{
 		return isLogin;
 	}
 	
-	public boolean loginByCookie(String userId,String cookiePw)throws SevErr{
+	public boolean loginByCookie(String userId,String userName)throws SevErr{
 		if (isLogin)return isLogin;
 		
 		IPackage userInfo = tblUser.get(userId);
-		String stat = userInfo.getString("/cookies/"+cookiePw+"/stat","N");
-		if(stat.equals("N")){
-			throw new SevErr(2112,"user can't login by cookie!");
-		}
-		else if(stat.equals("A")){
-			this.userId = (ObjectId)userInfo.getObj("/_id");
-			userQry = new DBPackage("_id",userId);
-			loginName = userInfo.getString("/cookies/"+cookiePw+"/user", "");
-			isLogin = true;
-		}
-		else{
-			throw new SevErr(2113,"user cookie passwd error!");
-		}
+		this.userId = (ObjectId)userInfo.getObj("/_id");
+		userQry = new DBPackage("_id",userId);
+		loginName = userName;
+		isLogin = true;
 		return isLogin;
 	}
 	

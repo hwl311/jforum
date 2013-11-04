@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public interface IUser extends Serializable {
 	public boolean login(String username,String passwd)throws SevErr;
-	public boolean loginByCookie(String username,String passwd)throws SevErr;
+	public boolean loginByCookie(String userid,String username)throws SevErr;
 	public void logout() throws SevErr;
 	public boolean isLogin() throws SevErr;
 	public boolean changePasswd(String oldPasswd,String newPasswd)throws SevErr;
