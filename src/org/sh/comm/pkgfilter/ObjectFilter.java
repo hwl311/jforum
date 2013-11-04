@@ -29,7 +29,7 @@ public class ObjectFilter  implements IPkgFilter {
 		Set<String> alreadyCheckKey = new HashSet<String>();
 		
 		//检查是否多出元素
-		logger.debug("free "+free);
+		//logger.debug("free "+free);
 		if(!free.equals("1")){
 			Set<?> keys = pkgMap.keySet();
 			Iterator<?> it = keys.iterator();
@@ -50,7 +50,7 @@ public class ObjectFilter  implements IPkgFilter {
 		}
 		
 		//检查是否缺少必要元素
-		logger.debug("nomust "+nomust);
+		//logger.debug("nomust "+nomust);
 		if(!nomust.equals("1")){
 			Set<?> keys = typeMap.keySet();
 			Iterator<?> it = keys.iterator();

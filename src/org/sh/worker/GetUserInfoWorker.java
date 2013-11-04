@@ -19,6 +19,7 @@ public class GetUserInfoWorker implements IWorker{
 		if(!user.isLogin())throw new SevErr(2302,"user is not logined");
 		
 		res.set("/userinfo", user.getInfo());
+		res.set("/pub/cookies/aa", "test ttt");
 		return 0;
 	}
 	

@@ -17,7 +17,6 @@ public class BaseUser implements IUser{
 	private boolean isLogin = false;
 	private String loginName = null;
 	private ObjectId userId = null;
-	private String passwdEncrypt = null;
 	private IPackage userQry = null;
 	
 	public boolean login(String username,String passwd)throws SevErr{
@@ -30,7 +29,6 @@ public class BaseUser implements IUser{
 				logger.debug(userPkg.getString("/info/name"));
 				isLogin = checkPasswd(passwd,userPkg.getString("/info/passwd"));
 				if(isLogin){
-					passwdEncrypt = userPkg.getString("/info/passwd");
 					userId = (ObjectId)userPkg.getObj("/_id");
 					userQry = new DBPackage("_id",userId);
 					loginName = username;
@@ -45,6 +43,26 @@ public class BaseUser implements IUser{
 		return isLogin;
 	}
 	
+	public boolean loginByCookie(String userId,String cookiePw)throws SevErr{
+		if (isLogin)return isLogin;
+		
+		IPackage userInfo = tblUser.get(userId);
+		String stat = userInfo.getString("/cookies/"+cookiePw+"/stat","N");
+		if(stat.equals("N")){
+			throw new SevErr(2112,"user can't login by cookie!");
+		}
+		else if(stat.equals("A")){
+			this.userId = (ObjectId)userInfo.getObj("/_id");
+			userQry = new DBPackage("_id",userId);
+			loginName = userInfo.getString("/cookies/"+cookiePw+"/user", "");
+			isLogin = true;
+		}
+		else{
+			throw new SevErr(2113,"user cookie passwd error!");
+		}
+		return isLogin;
+	}
+	
 	public boolean changePasswd(String oldPasswd,String newPasswd) throws SevErr{
 		if(!isLogin){
 			return false;
@@ -52,6 +70,8 @@ public class BaseUser implements IUser{
 		
 		String newPw = null;
 		String salt = null;
+		IPackage userPkg = tblUser.get(userId);
+		String passwdEncrypt = userPkg.getString("/info/passwd");
 		if(checkPasswd(oldPasswd,passwdEncrypt)){
 			newPw = encryptPasswd(salt,newPasswd);
 			newPw = salt + ":" + newPw;
@@ -127,8 +147,16 @@ public class BaseUser implements IUser{
 	public boolean isLogin(){
 		return isLogin;
 	}
+
+	public void setInfo(String info){
+		noLoginPkg = DBPackage.parse(info);
+	}
+	public void setInfo(IPackage info) throws SevErr{
+		DBPackage pkg = new DBPackage("info",info);
+		tblUser.update(pkg, userQry);
+	}
 	
-	public IPackage getInfo(){
+	public IPackage getInfo() throws SevErr{
 		if(isLogin){
 			IPackage userinfo = tblUser.get(userId);
 			return (IPackage)userinfo.get("info");
@@ -138,23 +166,32 @@ public class BaseUser implements IUser{
 		}
 	}
 	
-	public void setInfo(String info){
-		noLoginPkg = DBPackage.parse(info);
-	}
-	public void setInfo(IPackage info){
-		DBPackage pkg = new DBPackage("info",info);
-		tblUser.update(pkg, userQry);
-	}
-	public void setAppInfo(String app,IPackage info){
-		DBPackage pkg = new DBPackage(app,info);
-		tblUser.update(pkg, userQry);
+	public void setAppInfo(String app,String info) throws SevErr{
+		DBPackage pkg = DBPackage.parse(info);
+		logger.info(pkg);
+		this.setAppInfo(app, pkg);
 	}
 	
-	public String getUserId(){
+	public void setAppInfo(String app,IPackage info) throws SevErr{
+		if(!isLogin)throw new SevErr(2114,"user not login!");
+		DBPackage pkg = new DBPackage(app,info);
+		int cnt = tblUser.update(pkg, userQry);
+		logger.info(cnt);
+	}
+	
+	public IPackage getAppInfo(String app) throws SevErr{
+		if(!isLogin)throw new SevErr(2114,"user not login!");
+		IPackage userinfo = tblUser.get(userId);
+		return (IPackage)userinfo.get(app);
+	}
+	
+	public String getUserId() throws SevErr{
+		if(!isLogin)throw new SevErr(2114,"user not login!");
 		return userId.toString();
 	}
 	 
-	public String getLoginName(){
+	public String getLoginName() throws SevErr{
+		if(!isLogin)throw new SevErr(2114,"user not login!");
 		return loginName;
 	}
 	public void setTblUser(ITable tblUser){

@@ -1,29 +1,38 @@
 package org.sh.worker;
 
 import org.sh.comm.*;
+import java.util.*;
 
 
 public class LoginWorker implements IWorker{
 	static final long serialVersionUID = 0;
-	private ITable tblUser = null;
 	
 	public LoginWorker(){
 		
 	}
 	
 	public int doWorking(IUser user,IPackage req,IPackage res)throws SevErr{
-		if(tblUser==null)throw new SevErr(2201,"table user not defined");
 		if(user.isLogin())user.logout();
 		
 		String username = req.getString("/login/username");
 		String passwd = req.getString("/login/passwd");
 		user.login(username, passwd);
+		if(user.isLogin()){
+			String cookiepw = req.getString("/pub/cookies/cookiepw", "");
+			if(cookiepw.equals(""))cookiepw = user.byte2hex(user.getSalt(16));
+			
+			res.set("/pub/cookies/userid", user.getUserId());
+			res.set("/pub/cookies/cookiepw", cookiepw);
+			DBPackage cookie = new DBPackage();
+
+			cookie.set("/"+cookiepw+"/stat", "A");
+			cookie.set("/"+cookiepw+"/date", new Date());
+			cookie.set("/"+cookiepw+"/user", username);
+			user.setAppInfo("cookies", cookie);
+		}
 		return 0;
 	}
 	
-	public void setTblUser(ITable tblUser){
-		this.tblUser = tblUser;
-	}
 	public void setTblSeq(ITable tblSeq){
 		
 	}

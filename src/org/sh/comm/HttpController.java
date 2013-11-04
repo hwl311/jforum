@@ -3,6 +3,7 @@ package org.sh.comm;
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.util.*;
+import com.mongodb.util.*;
 import org.apache.log4j.*;
 import javax.servlet.http.*;
 import org.springframework.web.servlet.ModelAndView;
@@ -13,7 +14,7 @@ import org.springframework.web.servlet.mvc.Controller;
  * @author Administrator
  *
  */
-public class HttpController implements Controller , Serializable{
+public class HttpController implements Controller , Serializable, IWorker{
 	static final long serialVersionUID = 0;
 
 	static Logger logger = Logger.getLogger(HttpController.class.getName());
@@ -28,43 +29,32 @@ public class HttpController implements Controller , Serializable{
 
 	public ModelAndView handleRequest(HttpServletRequest arg0, HttpServletResponse arg1) throws Exception {
 		logger.debug("into handle!");
-		IPackage reqPkg = this.parseMsg(arg0);
-		if(reqPkg==null){
-			return null;
-		}
-		
 		int ret = 0;
-		DBPackage resPkg = new DBPackage();
-		resPkg.set("/seqno", ++seqno);
-		reqPkg.set("/seqno", seqno);
-		
+		IPackage reqPkg=null;
 		DBPackage seqPkg = new DBPackage();
-		seqPkg.set("/request", reqPkg.copy());
-		seqPkg.set("/begintime", new Date());
-		if(tblSeq != null)tblSeq.save(seqPkg);
+		DBPackage resPkg = new DBPackage();
 		
 		try{
-			if(workers != null){
-				/*
-				logger.debug("pre work!");
-				for(int i=0;i<workers.size();i++){
-					ret = workers.get(i).preWork(user, reqPkg, resPkg);
-				}*/
-				
-				//upload file if any
-				upload(arg0,null);
-				
-				logger.debug("do working!");
-				for(int i=0;i<workers.size();i++){
-					ret = workers.get(i).doWorking(user, reqPkg, resPkg);
-				}
-				
-				/*
-				logger.debug("post working!");
-				for(int i=0;i<workers.size();i++){
-					ret = workers.get(i).postWork(user, reqPkg, resPkg);
-				}*/
+			reqPkg = this.parseMsg(arg0);
+			if(reqPkg==null){
+				return null;
 			}
+			
+			//init pkg
+			resPkg.set("/seqno", ++seqno);
+			reqPkg.set("/seqno", seqno);
+			
+			seqPkg.set("/request", reqPkg.copy());
+			seqPkg.set("/begintime", new Date());
+			if(tblSeq != null)tblSeq.save(seqPkg);
+			
+			//upload file if any
+			upload(arg0,null);
+			
+			//do working
+			ret=doWorking(user,reqPkg,resPkg);
+			
+			//result
 			resPkg.set("/rescode", ret);
 			resPkg.set("/resdesc", "success");
 		}
@@ -95,24 +85,43 @@ public class HttpController implements Controller , Serializable{
 		seqPkg.set("/rescode", resPkg.getInt("/rescode"));
 		seqPkg.set("/resdesc", resPkg.getString("/resdesc"));
 		if(tblSeq != null)tblSeq.save(seqPkg);
-		
-		IPackage cpkg = (IPackage)resPkg.getObj("/pub/cookies");
-		if(cpkg!=null){
-			Map<?,?> cmap = cpkg.toMap();
-			for(Object key : cmap.keySet()){
-				Object val = cmap.get(key);
-				if(val instanceof String){
-					String str = (String)val;
-					Cookie c = new Cookie((String)key,str);
-					c.setMaxAge(3600*365);
-					c.setPath("/");
-					arg1.addCookie(c);
-				}
-			}
-		}
+		setCookie(resPkg,arg1);
 		
 		logger.info("response:"+resPkg.toString());
 		return new ModelAndView(view,"resPkg",seqPkg);
+	}
+	
+	public void setCookie(IPackage resPkg,HttpServletResponse hsr){
+		IPackage cpkg = (IPackage)resPkg.getObj("/pub/cookies");
+		if(cpkg==null){
+			logger.info("No Cookies"+cpkg);
+			return ;
+		}
+		Map<?,?> cmap = cpkg.toMap();
+		for(Object key : cmap.keySet()){
+			Object val = cmap.get(key);
+			if(val instanceof String){
+				String str = (String)val;
+				Cookie c = new Cookie((String)key,str);
+				c.setMaxAge(3600*365);
+				c.setPath("/");
+				hsr.addCookie(c);
+				logger.info("setCookie:"+key+"="+str);
+			}
+		}
+	}
+	
+	public int doWorking(IUser user,IPackage reqPkg,IPackage resPkg)throws SevErr{
+		int ret=0;
+		if(workers != null){
+			
+			logger.debug("do working!");
+			for(int i=0;i<workers.size();i++){
+				ret = workers.get(i).doWorking(user, reqPkg, resPkg);
+			}
+			
+		}
+		return ret;
 	}
 	
 	/**
@@ -134,7 +143,7 @@ public class HttpController implements Controller , Serializable{
 	 * @param req
 	 * @return
 	 */
-	public IPackage parseMsg(HttpServletRequest req){
+	public IPackage parseMsg(HttpServletRequest req) throws SevErr{
 		logger.debug("parse msg from:"+msg);
 		if(parser != null){
 			return parser.parseMsg(req);
@@ -142,36 +151,31 @@ public class HttpController implements Controller , Serializable{
 		
 		Cookie cookies[] = req.getCookies();
 		DBPackage retPkg = new DBPackage();
-		try{
-			String oriPkg[]=req.getParameterValues(msg);
-			if(oriPkg==null){
-				logger.warn("msg is null");
-				return null;
-			}
-			if(oriPkg.length<=0){
-				logger.warn("msg is null");
-				return null;
-			}
-			
-			logger.info("msg is:"+oriPkg[0]);
-			if(null == (retPkg=DBPackage.parse(oriPkg[0]))){
-				logger.warn("parse msg failed");
-				return null;
-			}
-			
-			DBPackage cs = new DBPackage();
-			retPkg.set("/pub/cookies", cs);
-			for(int i=0;i<cookies.length;i++){
-				cs.put(cookies[i].getName(), cookies[i].getValue());
-			}
-			return retPkg;
-			
-		}catch(Exception e){
-			logger.warn("exception:"+e);
-		}finally{
-			//return retPkg;
+
+		String oriPkg[]=req.getParameterValues(msg);
+		if(oriPkg==null){
+			logger.warn("msg is null");
+			throw new SevErr(2701,"msg is null");
 		}
-		return null;
+		if(oriPkg.length<=0){
+			logger.warn("msg is null");
+			throw new SevErr(2702,"msg is null");
+		}
+		
+		logger.info("msg is:"+oriPkg[0]);
+		try{
+			retPkg=DBPackage.parse(oriPkg[0]);
+		}catch(JSONParseException e){
+			logger.warn("parse msg failed");
+			throw new SevErr(2703,"parse msg failed");
+		}
+		
+		DBPackage cs = new DBPackage();
+		retPkg.set("/pub/cookies", cs);
+		for(int i=0;i<cookies.length;i++){
+			cs.put(cookies[i].getName(), cookies[i].getValue());
+		}
+		return retPkg;
 	}
 	
 	public void setMsg(String msg){

@@ -73,7 +73,6 @@ public class DBPackage extends BasicBSONObject implements IPackage {
 			return pkg;
 		}
 
-		if(pkg!=null)logger.warn(pkg.getClass().getName());
 		if(pkg instanceof IPackage){
 			return ((IPackage)pkg).getObj(tmp, obj);
 		}

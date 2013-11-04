@@ -26,6 +26,7 @@ public class FilterWorker implements IWorker,IPkgChecker{
 		if(cfg==null)throw new SevErr(1103,"±¨ÎÄ´íÎó");
 		IPackage type = null;
 		String typeName = cfg.getString("/<xmlattr>/type");
+		
 		if(typeName.equals("Ref")){
 			String ref=cfg.getString("/<xmlattr>/ref","");
 			type=(IPackage)pkgcfg.getObj(ref,null);
